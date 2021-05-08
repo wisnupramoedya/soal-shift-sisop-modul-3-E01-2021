@@ -1,112 +1,107 @@
-#include<stdio.h>
-#include<string.h>
-#include<pthread.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<sys/ipc.h>
-#include<sys/shm.h>
-#include<sys/types.h>
-#include<sys/wait.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define R 4
 #define C 6
 
-void* factorial(void* argvar){
-	int *arg = (int*)argvar;
-     	int i,j,selisih,fac=1;
+int matrix[R][C], matrix_shared[R][C], matrix_new[R][C];
 
-	for(i=0; i<=3; i++){
-		for(j=i*12; j<i+6; j++){
-			if(arg[j]==0 || arg[j+6]==0)
-				fac=0;
-			else if(arg[j] >= arg[j+6]){
-				selisih=arg[j]-arg[j+6];
-				for(j=arg[j]; j>selisih; j--){
-					fac*=arg[j];
-				}
-			}
-			else if(arg[j+6] > arg[j]){
-				for(j=arg[j]; j>=1; j--){
-					fac*=arg[j];
-				}
-			}
-		}
-	}
-	
-	int *p=(int*)malloc(sizeof(int));
-	*p=fac;
-	pthread_exit(p);
+pthread_t tid[R * C];
+
+typedef struct thread_args {
+    int A, B, i, j;
+} args;
+
+int factorial(int a, int b) {
+    int result = 1, i;
+    // printf("%d:%d\n", a, b);
+    if (a == 0 || b == 0)
+        result = 0;
+    else if (a >= b)
+        for (i = a - b + 1; i <= a; i++) result *= i;
+    else if (a < b)
+        for (i = 1; i <= a; i++) result *= i;
+
+    return result;
 }
 
-int main(){
-	
-	key_t key = 1945;
-	
-	int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666 );
-	int *res = (int *)shmat(shmid, NULL, 0);
-	
-	int m1[R][C],m2[R][C];
-	
-        int i,j,k=0,l=0;
-	for(i=0; i < R; i++){
-		for(j=0; j < C; j++){
-			m1[i][j] = res[k++];
-		}
-	}
+void *calculator(void *arg) {
+    pthread_t id = pthread_self();
+    int i;
 
-	printf("\nMatriks A :\n");
-	for(i=0; i < R; i++){
-		for(j=0; j < C; j++)
-			printf("%d ",m1[i][j] );
-		printf("\n");
-	}
-	
-	printf("\nMatriks B :\n");
-	for(i=0; i < R; i++){
-		for(j=0; j < C; j++){
-			scanf("%d",&m2[i][j]);
-		}
-	}
+    for (i = 0; i < R * C; i++) {
+        if (pthread_equal(id, tid[i])) {
+            args *arg_matrix = (args *)arg;
 
-	int err;
-	pthread_t *tid=(pthread_t*)malloc((24)*sizeof(pthread_t));
+            matrix[arg_matrix->i][arg_matrix->j] =
+                factorial(arg_matrix->A, arg_matrix->B);
 
-	int count=0;
-	int* arg=NULL;
-	k=0;
-	l=6;
-	
-	arg = (int*)malloc((48)*sizeof(int));
-	for(i=0; i < R; i++){
-        	for(j=0; j < C; j++){
-			//arg[0]=6;
-			arg[k++] = m1[i][j];
-			arg[l++] = m2[i][j];
-			err = pthread_create(&(tid[count++]),NULL,factorial,(void*) arg);
-			if(err!=0)
-				printf("\n can't create thread : [%s]",strerror(err));
-		}
-		k+=6;
-		l+=6;
-    	}
+            // printf("A:B,a:b -> res => %d:%d, %d:%d -> %d\n", arg_matrix->A,
+            //        arg_matrix->B, arg_matrix->i, arg_matrix->j,
+            //        matrix[arg_matrix->i][arg_matrix->j]);
+        }
+    }
+}
 
-	//cek merge array
-	printf("\nMerge matriks :\n");
-	for(i=0; i < 48; i++){
-		if(i%12==0 && i!=0)
-			printf("\n");
-		printf("%d ",arg[i]);
-	}
+int main(int argc, char const *argv[]) {
+    int i, j, k, err;
+    args arg[R * C];
 
-	printf("\n\nHasil Faktorial :\n");
-	for(i=0; i < 24; i++){
-		void*k;
-		pthread_join(tid[i],&k); 
-		int* p = (int* )k;
-		if(i%6==0 && i!=0)
-			printf("\n");
-		printf("%d ",*p);
-	}
-	printf("\n");
-	return 0;
+    key_t key = 1945;
+    int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+    int *result = (int *)shmat(shmid, NULL, 0);
+
+    printf("Matrix A:\n");
+    for (i = 0; i < R; i++) {
+        for (j = 0; j < C; j++) {
+            matrix_shared[i][j] = result[k++];
+            printf("%d ", matrix_shared[i][j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nMatrix B:\n");
+    for (i = 0; i < R; i++) {
+        for (j = 0; j < C; j++) {
+            // printf("%d:%d ", i, j);
+            scanf("%d", &matrix_new[i][j]);
+            // printf("%d ", matrix_new[i][j]);
+        }
+        // printf("\n");
+    }
+
+    for (i = 0; i < R; i++) {
+        for (j = 0; j < C; j++) {
+            arg[i * C + j].A = matrix_shared[i][j];
+            arg[i * C + j].B = matrix_new[i][j];
+            arg[i * C + j].i = i;
+            arg[i * C + j].j = j;
+            // printf("%d => %d %d %d %d\n", i * C + j, arg[i * C + j].A,
+            //        arg[i * C + j].B, arg[i * C + j].i, arg[i * C + j].j);
+
+            err = pthread_create(&(tid[i * C + j]), NULL, calculator,
+                                 &arg[i * C + j]);
+            if (err) printf("Error");
+        }
+    }
+
+    for (i = 0; i < R * C; i++) pthread_join(tid[i], NULL);
+
+    printf("\nResult:\n");
+    for (i = 0; i < R; i++) {
+        for (j = 0; j < C; j++) {
+            printf("%d ", matrix[i][j]);
+        }
+        printf("\n");
+    }
+
+    shmdt((void *)result);
+    return 0;
 }
