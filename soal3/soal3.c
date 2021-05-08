@@ -12,7 +12,7 @@
 
 const int EXT_FILE = 0, UNKNOWN_FILE = 1, HIDDEN_FILE = 2;
 pthread_t *tid;
-int length = 0, status = 0;
+int length = 0;
 char pwd[200];
 
 typedef struct queueNode_t {
@@ -90,13 +90,6 @@ typedef struct thread_args_f {
     int filenumber;
 } args_f;
 
-void get_pwd() {
-    if (getcwd(pwd, sizeof(pwd)) == NULL) exit(EXIT_FAILURE);
-    int i;
-
-    // printf("p: %s\n", pwd);
-}
-
 void get_file_data(char *fileloc, char *ext, char *filename, char *filepath) {
     int i, status = 0;
 
@@ -127,13 +120,14 @@ void get_file_data(char *fileloc, char *ext, char *filename, char *filepath) {
         }
         if (fileloc[i] == '.') {
             status_ext = 1;
-
             int j, k = i + 1;
             for (j = 0; fileloc[k];) {
                 ext[j++] = tolower(fileloc[k++]);
             }
+            break;
         }
     }
+    // printf("%s", ext);
 
     if (!status_ext) {
         status = UNKNOWN_FILE;
@@ -154,7 +148,7 @@ void *categorize_file(void *arg) {
         if (pthread_equal(id, tid[i])) {
             args_f *args = (args_f *)arg;
             // printf("%s %d\n", args->fileloc, args->filenumber);
-            bool check;
+            int check = -1;
             char ext[20];
             char filename[50];
             char filepath[100];
@@ -166,17 +160,22 @@ void *categorize_file(void *arg) {
             //     "folderpath: %s\n",
             //     ext, filename, filepath, args->fileloc);
 
-            check = mkdir(ext, 0777);
+            if (access(args->fileloc, F_OK) == 0) {
+                mkdir(ext, 0777);
 
-            char new_file_loc[100];
-            sprintf(new_file_loc, "%s/%s", ext, filename);
-            // printf("%s\n", new_file_loc);
-            check = rename(args->fileloc, new_file_loc);
+                char new_file_loc[100];
+                sprintf(new_file_loc, "%s/%s", ext, filename);
+                // printf("%s\n", new_file_loc);
+                check = rename(args->fileloc, new_file_loc);
+            }
 
+            // while (mutex_status != i)
+            //     ;
             if (check == 0)
                 printf("File %d : Berhasil Dikategorikan\n", args->filenumber);
             else
                 printf("File %d : Sad, gagal :(\n", args->filenumber);
+            // mutex_status = 1;
         }
     }
 }
@@ -225,7 +224,7 @@ void categorize_path_dir(char *filedir, args_f *arg) {
     // printf("s : %d\n", queue._size);
     while (!queue_isEmpty(&queue)) {
         arg[i].fileloc = queue_front(&queue);
-        arg[i].filenumber = i;
+        arg[i].filenumber = i + 1;
         // printf("i:%d => fr: %s; fileloc: %s; filenumber: %d\n", i,
         //        queue._front->data, arg[i].fileloc, arg[i].filenumber);
 
@@ -239,7 +238,7 @@ void categorize_path_dir(char *filedir, args_f *arg) {
 }
 
 void *categorize_work_dir(args_f *arg) {
-    get_pwd();
+    if (getcwd(pwd, sizeof(pwd)) == NULL) exit(EXIT_FAILURE);
 
     categorize_path_dir(pwd, arg);
 }
@@ -265,10 +264,10 @@ int main(int argc, char *argv[]) {
         }
 
     } else if (strcmp(argv[1], "-d") == 0) {
-        printf("-d\n");
+        // printf("-d\n");
         categorize_path_dir((char *)argv[2], arg);
     } else if (strcmp(argv[1], "*") == 0) {
-        printf("*\n");
+        // printf("*\n");
         categorize_work_dir(arg);
     }
 
