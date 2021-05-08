@@ -581,6 +581,135 @@ void logging(FILE* log,int tipe, char nama[]){
 }
 ```
 
+## Soal No.2
+Crypto (kamu) adalah teman Loba. Suatu pagi, Crypto melihat Loba yang sedang kewalahan mengerjakan tugas dari bosnya. Karena Crypto adalah orang yang sangat menyukai tantangan, dia ingin membantu Loba mengerjakan tugasnya. Detil dari tugas tersebut adalah:
+### 2.a 
+Membuat program perkalian matrix (4x3 dengan 3x6) dan menampilkan hasilnya. Matriks nantinya akan berisi angka 1-20 (tidak perlu dibuat filter angka).
+### 2.b 
+Membuat program dengan menggunakan matriks output dari program sebelumnya (program soal2a.c) (**Catatan!**: gunakan shared memory). Kemudian matriks tersebut akan dilakukan perhitungan dengan matrix baru (input user) sebagai berikut contoh perhitungan untuk matriks yang ada. Perhitungannya adalah setiap cel yang berasal dari matriks A menjadi angka untuk faktorial, lalu cel dari matriks B menjadi batas maksimal faktorialnya (dari paling besar ke paling kecil) (**Catatan!**: gunakan thread untuk perhitungan di setiap cel). 
+**Ketentuan**
+```
+If a >= b  -> a!/(a-b)!
+If b > a -> a!
+If 0 -> 0
+```
+
+Contoh :
+
+```
+**A**	**B**	**Angka-Angka Faktorial**
+4	4	4 3 2 1
+4	5	4 3 2 1
+4	3	4 3 2
+4	0	0
+0	4	0
+4	6	4 3 2 1
+```
+
+Contoh :
+
+```
+**Matriks A**	**Matriks B**	**Matriks Hasil**
+0	4	0	4	0	  4*3*2*1
+4	5	6	2	4*3*2*1	  5*4
+5	6	6	0	5*4*3*2*1 0
+```
+### 2.c
+Karena takut lag dalam pengerjaannya membantu Loba, Crypto juga membuat program (soal2c.c) untuk mengecek 5 proses teratas apa saja yang memakan resource komputernya dengan command ```“ps aux | sort -nrk 3,3 | head -5”``` (**Catatan!**: Harus menggunakan IPC Pipes)
+
+Note:
+- Semua matriks berasal dari input ke program.
+- Dilarang menggunakan system()
+
+## Penyelesaian No.2 :
+Pada mulanya untuk setiap argumen akan diberikan alur thread tersendiri. Hal ini sesuai dengan ```argv[1]```. Dan untuk seluruh isi pemrograman thread mengambil dari modul 3.
+
+### 2.a
+DIdefinisikan beberapa variabel, R sebagai jumlah baris, C sebagai jumlah kolom dan RC adalah jumlah kolom/baris
+```
+#define R 4
+#define RC 3
+#define C 6
+```
+
+Mendeklarasikan matriks m1, m2, dan m_res sebagai matriks hasil perkalian
+```
+int m1[R][RC],
+    m2[RC][C], 
+    m_res[R*C];
+```
+
+Mendeklarasikan ```key_t``` sebagai kode unik yang akan berperan dalam shared memory ke dalam program ```soal2b.c``` dan array ```res``` sebagai array yang menampung hasil perkalian matriks
+```
+key_t key = 1945; 
+	
+int shmid = shmget(key, sizeof(int)*R*C, IPC_CREAT | 0666 );
+int *res = (int *)shmat(shmid, NULL, 0);
+```
+
+Menginput nilai-nilai matriks ```m1``` dengan ukuran **4x3** dan input nilai-nilai matriks ```m2``` dengan ukuran **3x6**.
+```
+printf("Matrix %dx%d :\n", R, RC);
+for(i=0; i < R; i++){
+	for(j=0; j < RC; j++)
+		scanf("%d",&m1[i][j] );
+}
+
+printf("\nMatrix %dx%d :\n", RC, C);
+for(i=0; i < RC; i++){
+	for(j=0; j < C; j++)
+		scanf("%d",&m2[i][j] );
+}
+```
+
+Deklarasi array thread dengan ukuran 24
+```
+pthread_t *tid=(pthread_t*)malloc((24)*sizeof(pthread_t));
+```
+
+Menyimpan elemen dari baris dan kolo ke dalam ```arg```
+```
+arg = (int*)malloc((24)*sizeof(int));
+arg[0]=RC;
+
+for (k=0; k<RC; k++){
+	arg[k+1]=m1[i][k];
+}
+for (k=0; k<RC; k++){
+	arg[k+RC+1]=m2[k][j];
+}
+```
+
+Membuat thread
+```
+err = pthread_create(&(tid[count++]),NULL,&mul,(void*) arg);
+if(err!=0)
+	printf("\n can't create thread : [%s]",strerror(err));
+```
+
+Menjoin kan Thread dan ambil return value. Kemudian print hasil perkalian matriks
+```
+printf("\nHasil Perkalian :\n");
+for(i=0; i < R*C; i++){
+	void*k;
+	pthread_join(tid[i],&k); 
+	int* p = (int* )k;
+
+	printf("%d ",*p);
+	if((i+1)%C==0){
+		printf("\n");
+	}	
+	m_res[i]=*p;
+}
+```	
+
+Mmemasukkan nilai dari hasil perkalian ke dalam array ```res```
+```
+for(i=0; i < R*C; i++){
+	res[i] = m_res[i];
+}
+```
+
 ## Soal No.3
 Seorang mahasiswa bernama Alex sedang mengalami masa gabut. Di saat masa gabutnya, ia memikirkan untuk merapikan sejumlah file yang ada di laptopnya. Karena jumlah filenya terlalu banyak, Alex meminta saran ke Ayub. Ayub menyarankan untuk membuat sebuah program C agar file-file dapat dikategorikan. Program ini akan memindahkan file sesuai ekstensinya ke dalam folder sesuai ekstensinya yang folder hasilnya terdapat di working directory ketika program kategori tersebut dijalankan.
 
