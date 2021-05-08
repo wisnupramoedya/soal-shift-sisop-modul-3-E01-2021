@@ -864,10 +864,14 @@ if (access(args->fileloc, F_OK) == 0) {
 
 Selanjutnya, untuk menunggu proses print status setiap file, digunakan check yang sudah dipasang sebelumnya.
 ```
-if (check == 0)
-    printf("File %d : Berhasil Dikategorikan\n", args->filenumber);
-else
-    printf("File %d : Sad, gagal :(\n", args->filenumber);
+if (strcmp(argv[1], "-f") == 0) {
+    for (i = 0; i < length; i++) {
+        if (arg[i].isSuccess)
+            printf("File %d : Berhasil Dikategorikan\n", arg[i].filenumber);
+        else
+            printf("File %d : Sad, gagal :(\n", arg[i].filenumber);
+    }
+}
 ```
 
 

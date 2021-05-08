@@ -88,6 +88,7 @@ int queue_size(Queue *queue) { return queue->_size; }
 typedef struct thread_args_f {
     char *fileloc;
     int filenumber;
+    bool isSuccess;
 } args_f;
 
 void get_file_data(char *fileloc, char *ext, char *filename, char *filepath) {
@@ -152,6 +153,7 @@ void *categorize_file(void *arg) {
             char ext[20];
             char filename[50];
             char filepath[100];
+            args->isSuccess = false;
 
             get_file_data(args->fileloc, ext, filename, filepath);
 
@@ -167,14 +169,16 @@ void *categorize_file(void *arg) {
                 sprintf(new_file_loc, "%s/%s", ext, filename);
                 // printf("%s\n", new_file_loc);
                 check = rename(args->fileloc, new_file_loc);
+                args->isSuccess = (check == 0);
             }
 
             // while (mutex_status != i)
             //     ;
-            if (check == 0)
-                printf("File %d : Berhasil Dikategorikan\n", args->filenumber);
-            else
-                printf("File %d : Sad, gagal :(\n", args->filenumber);
+            // if (check == 0)
+            //     printf("File %d : Berhasil Dikategorikan\n",
+            //     args->filenumber);
+            // else
+            //     printf("File %d : Sad, gagal :(\n", args->filenumber);
             // mutex_status = 1;
         }
     }
@@ -272,5 +276,14 @@ int main(int argc, char *argv[]) {
     }
 
     for (i = 0; i < length; i++) pthread_join(tid[i], NULL);
+
+    if (strcmp(argv[1], "-f") == 0) {
+        for (i = 0; i < length; i++) {
+            if (arg[i].isSuccess)
+                printf("File %d : Berhasil Dikategorikan\n", arg[i].filenumber);
+            else
+                printf("File %d : Sad, gagal :(\n", arg[i].filenumber);
+        }
+    }
     return 0;
 }
