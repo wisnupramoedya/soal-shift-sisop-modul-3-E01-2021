@@ -581,6 +581,8 @@ void logging(FILE* log,int tipe, char nama[]){
 }
 ```
 
+# soal-shift-sisop-modul-3-E01-2021
+
 ## Soal No.2
 Crypto (kamu) adalah teman Loba. Suatu pagi, Crypto melihat Loba yang sedang kewalahan mengerjakan tugas dari bosnya. Karena Crypto adalah orang yang sangat menyukai tantangan, dia ingin membantu Loba mengerjakan tugasnya. Detil dari tugas tersebut adalah:
 ### 2.a 
@@ -597,7 +599,7 @@ If 0 -> 0
 Contoh :
 
 ```
-**A**	**B**	**Angka-Angka Faktorial**
+A	B	Angka-Angka Faktorial
 4	4	4 3 2 1
 4	5	4 3 2 1
 4	3	4 3 2
@@ -609,7 +611,7 @@ Contoh :
 Contoh :
 
 ```
-**Matriks A**	**Matriks B**	**Matriks Hasil**
+Matriks A	Matriks B	Matriks Hasil
 0	4	0	4	0	  4*3*2*1
 4	5	6	2	4*3*2*1	  5*4
 5	6	6	0	5*4*3*2*1 0
@@ -622,7 +624,6 @@ Note:
 - Dilarang menggunakan system()
 
 ## Penyelesaian No.2 :
-Pada mulanya untuk setiap argumen akan diberikan alur thread tersendiri. Hal ini sesuai dengan ```argv[1]```. Dan untuk seluruh isi pemrograman thread mengambil dari modul 3.
 
 ### 2.a
 DIdefinisikan beberapa variabel, R sebagai jumlah baris, C sebagai jumlah kolom dan RC adalah jumlah kolom/baris
@@ -707,6 +708,152 @@ Mmemasukkan nilai dari hasil perkalian ke dalam array ```res```
 ```
 for(i=0; i < R*C; i++){
 	res[i] = m_res[i];
+}
+```
+
+### 2.b
+Deklarasi shared matriks dan matriks baru yang akan diinput
+```
+int matrix[R][C], matrix_shared[R][C], matrix_new[R][C];
+```
+
+Mengakses nilai matriks yang telah dishare melalui kode unik dan memasukan ke dalam array result
+```
+key_t key = 1945;
+int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+int *result = (int *)shmat(shmid, NULL, 0);
+```
+
+Print hasil matriks pada program ```soal2a.c```
+```
+printf("Matrix A:\n");
+    for (i = 0; i < R; i++) {
+        for (j = 0; j < C; j++) {
+            matrix_shared[i][j] = result[k++];
+            printf("%d ", matrix_shared[i][j]);
+        }
+        printf("\n");
+    }
+```
+
+Input nilai-nilai pada matriks baru
+```
+printf("\nMatrix B:\n");
+    for (i = 0; i < R; i++) {
+        for (j = 0; j < C; j++) {
+            scanf("%d", &matrix_new[i][j]);
+        }
+    }
+```
+
+Memasukkan nilai ```matriks_shared``` dan ```matriks_new``` ke dalam array ```arg``` sebesar 4x6
+```
+for (i = 0; i < R; i++) {
+        for (j = 0; j < C; j++) {
+            arg[i * C + j].A = matrix_shared[i][j];
+            arg[i * C + j].B = matrix_new[i][j];
+            arg[i * C + j].i = i;
+            arg[i * C + j].j = j;
+        }
+    }
+```
+
+Membuat thread
+```
+err = pthread_create(&(tid[i * C + j]), NULL, calculator,
+                                 &arg[i * C + j]);
+            if (err) printf("Error");
+```
+
+Deklarasi struct agar dapat passing banyak nilai
+```
+typedef struct thread_args {
+    int A, B, i, j;
+} args;
+```
+
+Fungsi calculator
+```
+void *calculator(void *arg) {
+    pthread_t id = pthread_self();
+    int i;
+
+    for (i = 0; i < R * C; i++) {
+        if (pthread_equal(id, tid[i])) {
+            args *arg_matrix = (args *)arg;
+
+            matrix[arg_matrix->i][arg_matrix->j] =
+                factorial(arg_matrix->A, arg_matrix->B);
+        }
+    }
+}
+```
+
+Fungsi faktorial dengan beberapa kondisi
+```
+int factorial(int a, int b) {
+    int result = 1, i;
+  
+    if (a == 0 || b == 0)
+        result = 0;
+    else if (a >= b)
+        for (i = a - b + 1; i <= a; i++) result *= i;
+    else if (a < b)
+        for (i = 1; i <= a; i++) result *= i;
+
+    return result;
+}
+```
+
+### 2.c
+Mendeklarasikan ```pipe(fd[0])``` sebagai file descriptor untuk read end dan ```pipe(fd[1])``` sebagai file descriptor untuk write end
+```
+pipe(fd[0]);
+pipe(fd[1]);
+```
+
+Deklarasi string untuk eksekusi proses ```ps```,```sort```, dan ```head```
+```
+char *ps_arg[] = {"ps", "aux", NULL};
+char *sort_arg[] = {"sort", "-nrk", "3,3", NULL};
+char *head_arg[] = {"head", "-5", NULL};
+```
+
+Membuat stdout dan close semua file descriptor. Eksekusi ```ps aux```
+```
+if (fork() == 0) {
+        dup2(fd[0][1], STDOUT_FILENO);
+        closeAll(fd);
+        execv("/bin/ps", ps_arg);
+}
+```
+
+Membuat stdin untuk read hasil ```ps aux``` serta stdout dan close semua file descriptor. Eksekusi ```sort -nrk 3,3```
+```
+else if (fork() == 0) {
+        dup2(fd[0][0], STDIN_FILENO);
+        dup2(fd[1][1], STDOUT_FILENO);
+        closeAll(fd);
+        execv("/bin/sort", sort_arg);
+}
+```
+
+Membuat stdin dan write, lalu close semua file descriptor. Eksekusi ```head -5```
+```
+else if (fork() == 0) {
+        dup2(fd[1][0], STDIN_FILENO);
+        closeAll(fd);
+        execv("/bin/head", head_arg);
+}
+```
+
+Fungsi untuk close semua file descriptor
+```
+void closeAll(int fd[][2]) {
+    close(fd[0][0]);
+    close(fd[0][1]);
+    close(fd[1][0]);
+    close(fd[1][1]);
 }
 ```
 
