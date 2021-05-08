@@ -12,16 +12,15 @@
 #define RC 3
 #define C 6
 
-void* mul(void* struk){
-	int *arg = (int*)struk;
-     	int k=0, i=0;
+void* mul(void* argvar){
+	int *arg = (int*)argvar;
+     	int i,n=0;
 
-	int x=arg[0];
-	for(i=1; i<=x; i++)
-		k+=arg[i]*arg[i+x];
+	for(i=1; i<=RC; i++)
+		n+=arg[i]*arg[i+RC];
 	
 	int *p=(int*)malloc(sizeof(int));
-	*p=k;
+	*p=n;
 	pthread_exit(p);
 }
 
