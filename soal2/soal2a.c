@@ -24,30 +24,28 @@ void* mul(void* argvar){
 	pthread_exit(p);
 }
 
-int m1[R][RC] = { {1,2,3}, {2,3,1}, {3,1,2}, {3,2,1} },
-    m2[RC][C] = { {1,2,1,2,1,2}, {2,1,2,1,2,1}, {1,1,2,2,1,1} },
+int m1[R][RC],
+    m2[RC][C], 
     m_res[R*C];
 
 int main(){
 	
-	key_t key = 2021;
+	key_t key = 1945;
 	
 	int shmid = shmget(key, sizeof(int)*R*C, IPC_CREAT | 0666 );
 	int *res = (int *)shmat(shmid, NULL, 0);
 	
         int i,j;
-        printf("Matriks %dx%d :\n", R, RC);
+        printf("Matrix %dx%d :\n", R, RC);
 	for(i=0; i < R; i++){
 		for(j=0; j < RC; j++)
-			printf("%d ",m1[i][j] );
-		printf("\n");
+			scanf("%d",&m1[i][j] );
 	}
 
-	printf("\nMatriks %dx%d :\n", RC, C);
+	printf("\nMatrix %dx%d :\n", RC, C);
 	for(i=0; i < RC; i++){
 		for(j=0; j < C; j++)
-			printf("%d ",m2[i][j] );
-		printf("\n");
+			scanf("%d",&m2[i][j] );
 	}
 
 	int err,k;
