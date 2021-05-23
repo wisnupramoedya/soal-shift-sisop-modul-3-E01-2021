@@ -10,8 +10,10 @@
 
 #define R 4
 #define C 6
+typedef long long int ll;
 
-int matrix[R][C], matrix_shared[R][C], matrix_new[R][C];
+int matrix_shared[R][C], matrix_new[R][C];
+ll matrix[R][C];
 
 pthread_t tid[R * C];
 
@@ -19,8 +21,8 @@ typedef struct thread_args {
     int A, B, i, j;
 } args;
 
-int factorial(int a, int b) {
-    int result = 1, i;
+ll factorial(int a, int b) {
+    ll result = 1, i;
     // printf("%d:%d\n", a, b);
     if (a == 0 || b == 0)
         result = 0;
@@ -97,7 +99,7 @@ int main(int argc, char const *argv[]) {
     printf("\nResult:\n");
     for (i = 0; i < R; i++) {
         for (j = 0; j < C; j++) {
-            printf("%d ", matrix[i][j]);
+            printf("%lld ", matrix[i][j]);
         }
         printf("\n");
     }
